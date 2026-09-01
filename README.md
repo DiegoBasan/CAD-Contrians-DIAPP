@@ -101,7 +101,12 @@ componente cae a pose identidad y/o sin caras extraídas, en vez de lanzar una e
    Inventor, Fusion 360, FreeCAD) y ajustar los índices de atributos si algún exportador se desvía
    del patrón AP214 asumido.
 
-> Nota: WPF solo compila/corre en Windows. Este scaffold fue escrito sin acceso a un SDK de
-> .NET ni a Windows en este entorno, así que no se pudo compilar/ejecutar aquí — verificar con
-> `dotnet build` en Windows, y probar la importación con un `.step` real, antes de dar por buena
-> la integración de cada pieza.
+## Requisitos de build
+
+- WPF solo compila/corre en Windows.
+- El proyecto apunta a `net10.0-windows`. Antes de tocar `<TargetFramework>` en el `.csproj`,
+  correr `dotnet --list-sdks` y usar la versión que ya esté instalada en la máquina — pedir una
+  versión distinta a la instalada rompe el build pidiendo un SDK que puede requerir permisos de
+  administrador para instalar.
+- Ya se compiló y se probó importando un `.step` real (ver histórico del repo) tras ajustar el
+  `TargetFramework` a la versión de SDK disponible en esa máquina.
