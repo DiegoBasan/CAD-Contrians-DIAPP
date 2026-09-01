@@ -9,6 +9,8 @@ namespace CADSimulator.Core
     /// constraints are satisfied. This scaffold only defines the entry point and
     /// per-type dispatch; the actual geometric resolution (e.g. iterative relaxation
     /// or a proper constraint graph solve) still needs to be implemented per type.
+    /// Each Component's Faces (exact planes/cylinders read from STEP by
+    /// StepAssemblyReader) are the geometry each constraint type should resolve against.
     /// </summary>
     public static class ConstraintSolver
     {

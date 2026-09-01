@@ -1,5 +1,4 @@
 using CADSimulator.Models;
-using CADSimulator.Utils;
 
 namespace CADSimulator.Core
 {
@@ -7,7 +6,7 @@ namespace CADSimulator.Core
     {
         public static Assembly LoadFromStep(string filePath)
         {
-            var assembly = STEPParser.Parse(filePath);
+            var assembly = StepAssemblyReader.Read(filePath);
             assembly.SourceFilePath = filePath;
             return assembly;
         }

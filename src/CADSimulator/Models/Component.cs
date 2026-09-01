@@ -9,7 +9,7 @@ namespace CADSimulator.Models
         public Pose Pose { get; set; } = new Pose();
         public List<Component> Children { get; set; } = new List<Component>();
 
-        /// <summary>Path to the source geometry for this node (e.g. a shape within the loaded STEP file).</summary>
-        public string? GeometryRef { get; set; }
+        /// <summary>Analytic (plane/cylinder) face geometry read from this component's BREP solid, used as constraint targets.</summary>
+        public List<FaceGeometry> Faces { get; set; } = new List<FaceGeometry>();
     }
 }
