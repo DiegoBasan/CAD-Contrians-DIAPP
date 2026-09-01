@@ -1,0 +1,22 @@
+{
+  "Name": "Gripper Open",
+  "Frames": [
+    {
+      "Time": 0,
+      "Poses": {
+        "Jaw_L": { "Position": { "X": 0, "Y": 0, "Z": 0 }, "Rotation": { "X": 0, "Y": 0, "Z": 0 } },
+        "Jaw_R": { "Position": { "X": 10, "Y": 0, "Z": 0 }, "Rotation": { "X": 0, "Y": 0, "Z": 0 } }
+      }
+    },
+    {
+      "Time": 1000,
+      "Poses": {
+        "Jaw_L": { "Position": { "X": 5, "Y": 0, "Z": 0 }, "Rotation": { "X": 0, "Y": 0, "Z": 0 } },
+        "Jaw_R": { "Position": { "X": 5, "Y": 0, "Z": 0 }, "Rotation": { "X": 0, "Y": 0, "Z": 0 } }
+      }
+    }
+  ],
+  "Events": [
+    { "Time": 500, "Action": "vacuum_on", "Value": true }
+  ]
+}
