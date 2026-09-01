@@ -1,0 +1,7 @@
+<ControlPanel>
+  <Button Name="Gripper Open" Sequence="GripperOpen" />
+  <Button Name="Gripper Close" Sequence="GripperClose" />
+  <Slider Name="Rotate Base" Joint="BaseRotation" Min="0" Max="360" />
+  <Toggle Name="Vacuum" Event="vacuum_on" />
+  <StatusLight Name="Home" Joint="BasePosition" />
+</ControlPanel>

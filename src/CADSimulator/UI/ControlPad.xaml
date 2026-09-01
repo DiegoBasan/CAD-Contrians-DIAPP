@@ -1,0 +1,9 @@
+<UserControl x:Class="CADSimulator.UI.ControlPad"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="Control Panel" FontWeight="Bold" Margin="4" />
+        <!-- Buttons/sliders/toggles are generated at runtime from the project's control panel definition. -->
+        <StackPanel x:Name="ControlsHost" />
+    </DockPanel>
+</UserControl>
