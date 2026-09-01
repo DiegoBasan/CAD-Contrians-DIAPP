@@ -381,7 +381,8 @@ namespace CADSimulator.Core
                 {
                     Type = SurfaceType.Planar,
                     Origin = new Vector3d(frame.Origin.X, frame.Origin.Y, frame.Origin.Z),
-                    Axis = new Vector3d(frame.ZAxis.X, frame.ZAxis.Y, frame.ZAxis.Z)
+                    Axis = new Vector3d(frame.ZAxis.X, frame.ZAxis.Y, frame.ZAxis.Z),
+                    BoundaryLoop = ExtractPlanarBoundaryLoop(faceEntity)
                 };
             }
 
@@ -398,6 +399,80 @@ namespace CADSimulator.Core
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Reads a planar ADVANCED_FACE's outer boundary as an ordered vertex loop, but only when
+        /// it has a single bound (no holes) and every edge is a straight STEP LINE — otherwise
+        /// returns empty rather than approximating a curved boundary as straight.
+        /// </summary>
+        private List<Vector3d> ExtractPlanarBoundaryLoop(StepEntity faceEntity)
+        {
+            var empty = new List<Vector3d>();
+            if (faceEntity.Parameters.Count < 2)
+            {
+                return empty;
+            }
+
+            var bounds = faceEntity.Parameters[1].AsList();
+            if (bounds.Count != 1 || bounds[0].Kind != StepValueKind.Reference)
+            {
+                return empty;
+            }
+
+            var boundEntity = Get(bounds[0].Reference);
+            if (boundEntity == null || boundEntity.Parameters.Count < 2)
+            {
+                return empty;
+            }
+
+            var loopEntity = Get(boundEntity.Parameters[1].AsReference());
+            if (loopEntity == null || !loopEntity.Is("EDGE_LOOP") || loopEntity.Parameters.Count < 2)
+            {
+                return empty;
+            }
+
+            var loopPoints = new List<Vector3d>();
+            foreach (var edgeRef in loopEntity.Parameters[1].AsList())
+            {
+                if (edgeRef.Kind != StepValueKind.Reference)
+                {
+                    return empty;
+                }
+
+                var orientedEdge = Get(edgeRef.Reference);
+                if (orientedEdge == null || !orientedEdge.Is("ORIENTED_EDGE") || orientedEdge.Parameters.Count < 5)
+                {
+                    return empty;
+                }
+
+                var edgeCurve = Get(orientedEdge.Parameters[3].AsReference());
+                if (edgeCurve == null || edgeCurve.Parameters.Count < 4)
+                {
+                    return empty;
+                }
+
+                var edgeGeometry = Get(edgeCurve.Parameters[3].AsReference());
+                if (edgeGeometry == null || !edgeGeometry.Is("LINE"))
+                {
+                    return empty; // a curved edge — this face isn't a straight polygon.
+                }
+
+                var orientation = orientedEdge.Parameters[4].Kind == StepValueKind.Enumeration
+                    && orientedEdge.Parameters[4].Text == "T";
+                var startVertexRef = orientation ? edgeCurve.Parameters[1] : edgeCurve.Parameters[2];
+
+                var vertex = Get(startVertexRef.AsReference());
+                if (vertex == null || vertex.Parameters.Count < 2)
+                {
+                    return empty;
+                }
+
+                var point = ReadCartesianPoint(vertex.Parameters[1].AsReference());
+                loopPoints.Add(new Vector3d(point.X, point.Y, point.Z));
+            }
+
+            return loopPoints;
         }
     }
 }

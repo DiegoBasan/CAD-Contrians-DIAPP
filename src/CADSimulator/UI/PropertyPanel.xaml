@@ -3,8 +3,45 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <DockPanel>
         <TextBlock DockPanel.Dock="Top" Text="Properties / Constraints" FontWeight="Bold" Margin="4" />
+        <TextBlock x:Name="SelectedNameText" DockPanel.Dock="Top" Text="(none selected)" Margin="4,0,4,8" FontStyle="Italic" />
+
+        <TextBlock DockPanel.Dock="Top" Text="Position (X / Y / Z)" Margin="4,0" FontWeight="SemiBold" />
+        <Grid DockPanel.Dock="Top" Margin="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="PositionXBox" Grid.Column="0" Margin="2" />
+            <TextBox x:Name="PositionYBox" Grid.Column="1" Margin="2" />
+            <TextBox x:Name="PositionZBox" Grid.Column="2" Margin="2" />
+        </Grid>
+
+        <TextBlock DockPanel.Dock="Top" Text="Rotation, deg (X / Y / Z)" Margin="4,4,4,0" FontWeight="SemiBold" />
+        <Grid DockPanel.Dock="Top" Margin="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="RotationXBox" Grid.Column="0" Margin="2" />
+            <TextBox x:Name="RotationYBox" Grid.Column="1" Margin="2" />
+            <TextBox x:Name="RotationZBox" Grid.Column="2" Margin="2" />
+        </Grid>
+        <Button DockPanel.Dock="Top" Content="Apply Pose" Margin="4" Click="ApplyPose_Click" />
+
+        <Separator DockPanel.Dock="Top" Margin="4,8" />
+
+        <TextBlock DockPanel.Dock="Top" Text="Constraint" FontWeight="SemiBold" Margin="4,0" />
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4,4,4,0">
+            <Button Content="Use selected as A" Click="UseAsA_Click" Margin="0,0,4,0" />
+            <TextBlock x:Name="ComponentALabel" Text="(none)" VerticalAlignment="Center" />
+        </StackPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4,4,4,0">
+            <Button Content="Use selected as B" Click="UseAsB_Click" Margin="0,0,4,0" />
+            <TextBlock x:Name="ComponentBLabel" Text="(none)" VerticalAlignment="Center" />
+        </StackPanel>
         <ComboBox x:Name="ConstraintTypeCombo" DockPanel.Dock="Top" Margin="4" />
-        <StackPanel x:Name="ConstraintParametersPanel" DockPanel.Dock="Top" Margin="4" />
         <Button x:Name="AddConstraintButton" DockPanel.Dock="Bottom" Content="Add Constraint"
                 Margin="4" Click="AddConstraint_Click" />
         <ListBox x:Name="ConstraintList" />

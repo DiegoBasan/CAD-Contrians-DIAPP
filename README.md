@@ -1,5 +1,7 @@
 # CAD-Contrians-DIAPP — CAD Assembly Simulator
 
+**Versión: v1.3** — ver [Changelog](#changelog) abajo. Cada iteración sube este número.
+
 Herramienta interactiva para importar ensambles CAD (STEP/STP), definir constraints simples
 entre componentes, simular secuencias de movimiento (robots, cilindros, mecanismos) y
 controlarlas desde un panel custom por proyecto.
@@ -9,7 +11,8 @@ NURBS analíticas, tal como vienen en el STEP), no sobre una malla triangulada t
 lee la estructura de producto/ensamble y la geometría analítica directamente del archivo STEP.
 
 ## Stack
-- **Backend:** C# / .NET 8. El parseo de STEP es un lector propio del formato físico STEP
+- **Backend:** C# / .NET (target actual: `net10.0-windows` — ver Requisitos de build). El parseo
+  de STEP es un lector propio del formato físico STEP
   (ISO 10303-21) — no depende de Open CASCADE ni de ninguna malla intermedia.
 - **Frontend:** WPF (viewport 3D nativo `Viewport3D` como punto de partida).
 - **Serialización:** Newtonsoft.Json para secuencias y proyectos.
@@ -77,29 +80,51 @@ componente cae a pose identidad y/o sin caras extraídas, en vez de lanzar una e
   definidos.
 - **`StepAssemblyReader` + `StepRawParser` son reales**: leen jerarquía de ensamble, poses
   relativas exactas y geometría analítica de caras (plano/cilindro) directamente del STEP, sin
-  pasar por ninguna malla. `MainWindow` ya importa un `.step`/`.stp` real y puebla el árbol de
-  componentes con esto.
+  pasar por ninguna malla.
+- **Viewport 3D real**: `AssemblyViewportBuilder` tesela las caras planas (`Component.Faces` con
+  `BoundaryLoop` de bordes rectos) vía ear-clipping (`Utils/PolygonTessellator.cs`) y arma el
+  `Model3DGroup` jerárquico (una transformación por componente, igual que la jerarquía del
+  ensamble). `MainWindow` importa el `.step`, puebla el árbol, dibuja la escena y ajusta la
+  cámara al bounding box del modelo. Cámara orbital con mouse: click-izq arrastra = orbitar,
+  click-der/medio arrastra = pan, rueda = zoom.
+- **Selección + mover partes**: seleccionar un componente en el árbol lo carga en `PropertyPanel`
+  (Position/Rotation en cajas de texto); "Apply Pose" actualiza `Component.Pose` y refresca el
+  viewport. Todavía es edición numérica, no arrastrar en 3D (ver "Próximos pasos").
+- **Autoría de constraints**: en `PropertyPanel`, "Use selected as A/B" toma el componente
+  seleccionado en el árbol, se elige el tipo, y "Add Constraint" agrega un `Constraint` a
+  `assembly.Constraints` (todavía no se resuelve geométricamente — ver `ConstraintSolver`).
+- Modo oscuro aplicado a toda la app vía estilos implícitos en `App.xaml`.
 - `KinematicSimulator` interpola poses entre keyframes (funcional).
 - `SequenceRecorder` + `FileManager` graban y guardan/cargan secuencias en JSON (funcional).
 - `ControlPanelLoader` parsea el XML de `<ControlPanel>` y `ControlPad` renderiza los controles
   dinámicamente (funcional).
 - `ConstraintSolver` sigue siendo un stub: ya tiene la geometría exacta disponible
   (`Component.Faces`) pero falta implementar la resolución por tipo de constraint.
-- El `Viewport3D` todavía no dibuja la geometría importada: falta un tesselador (triangulación)
-  de las caras BREP para poder mostrarlas — ver "Próximos pasos".
+
+## Limitaciones conocidas (viewport)
+
+- Solo se dibujan caras **planas** con contorno de **bordes rectos y sin agujeros** (un solo
+  `FACE_BOUND`). Caras cilíndricas, NURBS, o con agujeros no se tesela aún — sí se sigue
+  extrayendo su geometría analítica para constraints, pero no aparecen en el viewport. Esto
+  significa que, dependiendo de la pieza, es normal ver el modelo "incompleto" (solo caras
+  planas) o vacío si la pieza es puramente curva.
+- Si el árbol muestra "(0 faces)" en todos los componentes de un ensamble real, probablemente el
+  archivo usa un patrón de STEP distinto al asumido (p. ej. geometría compartida vía
+  `MAPPED_ITEM`/`REPRESENTATION_MAP` en vez de un `MANIFOLD_SOLID_BREP` directo). Si te pasa,
+  compárteme unas líneas del `.step` con `MANIFOLD_SOLID_BREP`, `SHAPE_REPRESENTATION` o
+  `MAPPED_ITEM` para ajustar el lector a ese exportador.
 
 ## Próximos pasos sugeridos
 
-1. Tesselar las caras planas (polígono con bordes rectos vía `LINE`) para poder dibujarlas en el
-   `Viewport3D`; caras cilíndricas/NURBS necesitan evaluación de curvas/superficies, que es un
-   paso más grande (o integrar un kernel como Open CASCADE solo para esa parte si hace falta
-   precisión total de visualización, dejando el parser de estructura/constraints como está).
-2. Implementar la resolución geométrica en `ConstraintSolver` por tipo de constraint
+1. Mover partes arrastrando en el viewport (gizmo de traslación/rotación), no solo por campos
+   numéricos.
+2. Soportar `MAPPED_ITEM`/`REPRESENTATION_MAP` (geometría compartida entre instancias) en
+   `StepAssemblyReader`, y caras con agujeros (múltiples `FACE_BOUND`) en el tesselador.
+3. Implementar la resolución geométrica en `ConstraintSolver` por tipo de constraint
    (Coincident, Coaxial, Parallel, Perpendicular, Distance, Angle, Slider) usando
-   `Component.Faces`.
-3. Probar `StepAssemblyReader` contra archivos STEP reales de distintos exportadores (SolidWorks,
-   Inventor, Fusion 360, FreeCAD) y ajustar los índices de atributos si algún exportador se desvía
-   del patrón AP214 asumido.
+   `Component.Faces`, y que mover/restringir una parte mueva las que dependen de ella.
+4. Tesselar caras cilíndricas/NURBS (evaluación de curvas/superficies) para que el modelo se vea
+   completo, no solo sus caras planas.
 
 ## Requisitos de build
 
@@ -110,3 +135,18 @@ componente cae a pose identidad y/o sin caras extraídas, en vez de lanzar una e
   administrador para instalar.
 - Ya se compiló y se probó importando un `.step` real (ver histórico del repo) tras ajustar el
   `TargetFramework` a la versión de SDK disponible en esa máquina.
+
+## Changelog
+
+- **v1.0** — Scaffold inicial: estructura de proyecto WPF, modelos de datos, `KinematicSimulator`,
+  `SequenceRecorder`/`FileManager`, `ControlPanelLoader`/`ControlPad`. `STEPParser` y
+  `ConstraintSolver` como stubs.
+- **v1.1** — Lector real de STEP/BREP (sin mallado): `StepRawParser` + `StepAssemblyReader`
+  reemplazan el stub, leyendo jerarquía de ensamble, poses exactas y geometría analítica de caras
+  directamente del archivo STEP.
+- **v1.2** — Fix de build: `TargetFramework` a `net10.0-windows` para coincidir con el SDK
+  instalado (evita requerir permisos de admin para instalar otro SDK).
+- **v1.3** — Viewport 3D funcional (tesselado de caras planas + cámara orbital), modo oscuro,
+  selección de partes en el árbol con edición de pose (mover partes), autoría de constraints por
+  selección en `PropertyPanel`, y extracción del contorno de caras (`BoundaryLoop`) necesaria
+  para poder dibujarlas.
