@@ -80,7 +80,7 @@ namespace CADSimulator.UI
         {
             if (_assembly == null || _pendingA == null || _pendingB == null || ConstraintTypeCombo.SelectedItem == null)
             {
-                MessageBox.Show(this, "Select components for both A and B first (via the assembly tree).",
+                MessageBox.Show(Window.GetWindow(this), "Select components for both A and B first (via the assembly tree).",
                     "Add Constraint", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
