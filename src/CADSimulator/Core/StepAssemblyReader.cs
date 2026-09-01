@@ -280,7 +280,26 @@ namespace CADSimulator.Core
                 return faces;
             }
 
-            foreach (var item in shapeRepBlock.Parameters[1].AsList())
+            CollectFacesFromItems(shapeRepBlock.Parameters[1].AsList(), faces, Frame3.Identity, 0);
+            return faces;
+        }
+
+        /// <summary>
+        /// Walks a SHAPE_REPRESENTATION's items. Most parts have their solid directly in this
+        /// list (MANIFOLD_SOLID_BREP/BREP_WITH_VOIDS). Some CAD systems (SolidWorks in
+        /// particular) instead share one master solid across every occurrence via MAPPED_ITEM ->
+        /// REPRESENTATION_MAP, placing it into this representation through a second
+        /// AXIS2_PLACEMENT_3D pair — `contextFrame` carries that (possibly nested) placement so
+        /// extracted face geometry ends up in this component's own local coordinates either way.
+        /// </summary>
+        private void CollectFacesFromItems(List<StepValue> items, List<FaceGeometry> faces, Frame3 contextFrame, int depth)
+        {
+            if (depth > 8)
+            {
+                return; // guards against a malformed/cyclic REPRESENTATION_MAP chain.
+            }
+
+            foreach (var item in items)
             {
                 if (item.Kind != StepValueKind.Reference)
                 {
@@ -288,13 +307,52 @@ namespace CADSimulator.Core
                 }
 
                 var itemEntity = Get(item.Reference);
-                if (itemEntity != null && (itemEntity.Is("MANIFOLD_SOLID_BREP") || itemEntity.Is("BREP_WITH_VOIDS")))
+                if (itemEntity == null)
                 {
-                    CollectFacesFromSolid(itemEntity, faces);
+                    continue;
+                }
+
+                if (itemEntity.Is("MANIFOLD_SOLID_BREP") || itemEntity.Is("BREP_WITH_VOIDS"))
+                {
+                    CollectFacesFromSolid(itemEntity, faces, contextFrame);
+                }
+                else if (itemEntity.Is("MAPPED_ITEM"))
+                {
+                    CollectFacesFromMappedItem(itemEntity, faces, contextFrame, depth);
                 }
             }
+        }
 
-            return faces;
+        private void CollectFacesFromMappedItem(StepEntity mappedItem, List<FaceGeometry> faces, Frame3 contextFrame, int depth)
+        {
+            if (mappedItem.Parameters.Count < 3)
+            {
+                return;
+            }
+
+            var representationMap = Get(mappedItem.Parameters[1].AsReference());
+            if (representationMap == null || representationMap.Parameters.Count < 2)
+            {
+                return;
+            }
+
+            var mappingOrigin = ReadAxis2Placement3D(representationMap.Parameters[0].AsReference());
+            var mappingTarget = ReadAxis2Placement3D(mappedItem.Parameters[2].AsReference());
+
+            // A point in the mapped representation's local coordinates first gets re-expressed
+            // relative to mappingOrigin, then placed as if it were given relative to
+            // mappingTarget — which lives in *this* representation's space.
+            var mappingFrame = Frame3.Identity.RelativeTo(mappingOrigin).ComposeWithParent(mappingTarget);
+            var nestedContext = mappingFrame.ComposeWithParent(contextFrame);
+
+            var mappedRep = Get(representationMap.Parameters[1].AsReference());
+            var mappedBlock = mappedRep?.Blocks.FirstOrDefault(b => ShapeRepresentationKeywords.Contains(b.Keyword));
+            if (mappedBlock == null || mappedBlock.Parameters.Count < 2)
+            {
+                return;
+            }
+
+            CollectFacesFromItems(mappedBlock.Parameters[1].AsList(), faces, nestedContext, depth + 1);
         }
 
         private int? FindShapeRepresentationId(int productDefinitionId)
@@ -318,14 +376,14 @@ namespace CADSimulator.Core
             return null;
         }
 
-        private void CollectFacesFromSolid(StepEntity solid, List<FaceGeometry> faces)
+        private void CollectFacesFromSolid(StepEntity solid, List<FaceGeometry> faces, Frame3 contextFrame)
         {
             if (solid.Parameters.Count < 2)
             {
                 return;
             }
 
-            CollectFacesFromShell(Get(solid.Parameters[1].AsReference()), faces);
+            CollectFacesFromShell(Get(solid.Parameters[1].AsReference()), faces, contextFrame);
 
             if (solid.Is("BREP_WITH_VOIDS") && solid.Parameters.Count > 2)
             {
@@ -333,13 +391,13 @@ namespace CADSimulator.Core
                 {
                     if (voidRef.Kind == StepValueKind.Reference)
                     {
-                        CollectFacesFromShell(Get(voidRef.Reference), faces);
+                        CollectFacesFromShell(Get(voidRef.Reference), faces, contextFrame);
                     }
                 }
             }
         }
 
-        private void CollectFacesFromShell(StepEntity? shell, List<FaceGeometry> faces)
+        private void CollectFacesFromShell(StepEntity? shell, List<FaceGeometry> faces, Frame3 contextFrame)
         {
             if (shell == null || shell.Parameters.Count < 2)
             {
@@ -353,7 +411,7 @@ namespace CADSimulator.Core
                     continue;
                 }
 
-                var faceGeometry = ExtractFaceGeometry(Get(faceRef.Reference));
+                var faceGeometry = ExtractFaceGeometry(Get(faceRef.Reference), contextFrame);
                 if (faceGeometry != null)
                 {
                     faces.Add(faceGeometry);
@@ -361,7 +419,7 @@ namespace CADSimulator.Core
             }
         }
 
-        private FaceGeometry? ExtractFaceGeometry(StepEntity? faceEntity)
+        private FaceGeometry? ExtractFaceGeometry(StepEntity? faceEntity, Frame3 contextFrame)
         {
             if (faceEntity == null || !faceEntity.Is("ADVANCED_FACE") || faceEntity.Parameters.Count < 3)
             {
@@ -376,19 +434,19 @@ namespace CADSimulator.Core
 
             if (surface.Is("PLANE") && surface.Parameters.Count >= 2)
             {
-                var frame = ReadAxis2Placement3D(surface.Parameters[1].AsReference());
+                var frame = ReadAxis2Placement3D(surface.Parameters[1].AsReference()).ComposeWithParent(contextFrame);
                 return new FaceGeometry
                 {
                     Type = SurfaceType.Planar,
                     Origin = new Vector3d(frame.Origin.X, frame.Origin.Y, frame.Origin.Z),
                     Axis = new Vector3d(frame.ZAxis.X, frame.ZAxis.Y, frame.ZAxis.Z),
-                    BoundaryLoop = ExtractPlanarBoundaryLoop(faceEntity)
+                    BoundaryLoop = ExtractPlanarBoundaryLoop(faceEntity, contextFrame)
                 };
             }
 
             if (surface.Is("CYLINDRICAL_SURFACE") && surface.Parameters.Count >= 3)
             {
-                var frame = ReadAxis2Placement3D(surface.Parameters[1].AsReference());
+                var frame = ReadAxis2Placement3D(surface.Parameters[1].AsReference()).ComposeWithParent(contextFrame);
                 return new FaceGeometry
                 {
                     Type = SurfaceType.Cylindrical,
@@ -406,7 +464,7 @@ namespace CADSimulator.Core
         /// it has a single bound (no holes) and every edge is a straight STEP LINE — otherwise
         /// returns empty rather than approximating a curved boundary as straight.
         /// </summary>
-        private List<Vector3d> ExtractPlanarBoundaryLoop(StepEntity faceEntity)
+        private List<Vector3d> ExtractPlanarBoundaryLoop(StepEntity faceEntity, Frame3 contextFrame)
         {
             var empty = new List<Vector3d>();
             if (faceEntity.Parameters.Count < 2)
@@ -468,7 +526,7 @@ namespace CADSimulator.Core
                     return empty;
                 }
 
-                var point = ReadCartesianPoint(vertex.Parameters[1].AsReference());
+                var point = contextFrame.TransformPoint(ReadCartesianPoint(vertex.Parameters[1].AsReference()));
                 loopPoints.Add(new Vector3d(point.X, point.Y, point.Z));
             }
 
