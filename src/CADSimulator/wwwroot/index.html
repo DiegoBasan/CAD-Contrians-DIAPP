@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>CAD Assembly Simulator</title>
+    <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+    <div id="toolbar">
+        <button id="btnImport">Import STEP</button>
+        <button id="btnSave">Save Project</button>
+        <div class="spacer"></div>
+        <button id="btnModeMove" class="mode-btn active" data-mode="translate">Move</button>
+        <button id="btnModeRotate" class="mode-btn" data-mode="rotate">Rotate</button>
+    </div>
+    <div id="main">
+        <div id="treePanel">
+            <div class="panel-title">Assembly</div>
+            <div id="tree"></div>
+        </div>
+        <div id="viewport">
+            <canvas id="canvas"></canvas>
+        </div>
+        <div id="propertiesPanel">
+            <div class="panel-title">Selection</div>
+            <div id="selectedName">(none selected)</div>
+
+            <div class="panel-title">Constraint</div>
+            <div class="row">
+                <button id="btnUseA">Use selected as A</button>
+                <span id="labelA">(none)</span>
+            </div>
+            <div class="row">
+                <button id="btnUseB">Use selected as B</button>
+                <span id="labelB">(none)</span>
+            </div>
+            <select id="constraintType">
+                <option>Coincident</option>
+                <option>Coaxial</option>
+                <option>Parallel</option>
+                <option>Perpendicular</option>
+                <option>Distance</option>
+                <option>Angle</option>
+                <option>Slider</option>
+            </select>
+            <button id="btnAddConstraint">Add Constraint</button>
+            <div id="constraintList"></div>
+        </div>
+    </div>
+    <div id="statusBar">Ready — File &gt; Import STEP to begin.</div>
+
+    <script src="vendor/three.min.js"></script>
+    <script src="vendor/OrbitControls.js"></script>
+    <script src="vendor/TransformControls.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

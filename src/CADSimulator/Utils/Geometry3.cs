@@ -53,36 +53,35 @@ namespace CADSimulator.Utils
             ZAxis = new Vec3(0, 0, 1)
         };
 
-        /// <summary>Treats `this` as a frame defined in `parent`'s local coordinates and returns it expressed in parent's own containing space.</summary>
-        public Frame3 ComposeWithParent(Frame3 parent)
-        {
-            Vec3 TransformPoint(Vec3 p) => parent.Origin + (parent.XAxis * p.X) + (parent.YAxis * p.Y) + (parent.ZAxis * p.Z);
-            Vec3 TransformDirection(Vec3 d) => (parent.XAxis * d.X) + (parent.YAxis * d.Y) + (parent.ZAxis * d.Z);
+        /// <summary>Maps a point given in this frame's own local coordinates into this frame's containing (parent) space.</summary>
+        public Vec3 TransformPoint(Vec3 localPoint) => Origin + (XAxis * localPoint.X) + (YAxis * localPoint.Y) + (ZAxis * localPoint.Z);
 
-            return new Frame3
-            {
-                Origin = TransformPoint(Origin),
-                XAxis = TransformDirection(XAxis),
-                YAxis = TransformDirection(YAxis),
-                ZAxis = TransformDirection(ZAxis)
-            };
-        }
+        /// <summary>Maps a direction given in this frame's own local coordinates into this frame's containing (parent) space.</summary>
+        public Vec3 TransformDirection(Vec3 localDirection) => (XAxis * localDirection.X) + (YAxis * localDirection.Y) + (ZAxis * localDirection.Z);
+
+        /// <summary>Re-expresses a point (given in this frame's containing space) in this frame's own local coordinates.</summary>
+        public Vec3 ToLocalPoint(Vec3 point) => ToLocalDirection(point - Origin);
+
+        /// <summary>Re-expresses a direction (given in this frame's containing space) in this frame's own local coordinates.</summary>
+        public Vec3 ToLocalDirection(Vec3 direction) => new Vec3(direction.Dot(XAxis), direction.Dot(YAxis), direction.Dot(ZAxis));
+
+        /// <summary>Treats `this` as a frame defined in `parent`'s local coordinates and returns it expressed in parent's own containing space.</summary>
+        public Frame3 ComposeWithParent(Frame3 parent) => new Frame3
+        {
+            Origin = parent.TransformPoint(Origin),
+            XAxis = parent.TransformDirection(XAxis),
+            YAxis = parent.TransformDirection(YAxis),
+            ZAxis = parent.TransformDirection(ZAxis)
+        };
 
         /// <summary>Returns `this` frame re-expressed relative to `reference` (both given in the same containing space).</summary>
-        public Frame3 RelativeTo(Frame3 reference)
+        public Frame3 RelativeTo(Frame3 reference) => new Frame3
         {
-            var delta = Origin - reference.Origin;
-
-            Vec3 ToLocal(Vec3 v) => new Vec3(v.Dot(reference.XAxis), v.Dot(reference.YAxis), v.Dot(reference.ZAxis));
-
-            return new Frame3
-            {
-                Origin = ToLocal(delta),
-                XAxis = ToLocal(XAxis),
-                YAxis = ToLocal(YAxis),
-                ZAxis = ToLocal(ZAxis)
-            };
-        }
+            Origin = reference.ToLocalPoint(Origin),
+            XAxis = reference.ToLocalDirection(XAxis),
+            YAxis = reference.ToLocalDirection(YAxis),
+            ZAxis = reference.ToLocalDirection(ZAxis)
+        };
 
         public Pose ToPose() => new Pose
         {
